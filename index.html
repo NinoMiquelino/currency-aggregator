@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotações de Moedas com Cache em PHP</title>
+    <meta name="author" content="Onivaldo Miquelino">          
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: ui-sans-serif, system-ui; }
+        .card { transition: transform 0.2s, box-shadow 0.2s; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 flex justify-center">
+
+    <div class="w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-center text-indigo-700 mb-2">Agregador de Cotações de Moedas</h1>
+        <p class="text-center text-gray-500 mb-6">Demonstração de Cache de Resposta com PHP.</p>
+        
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6 space-y-4">
+            <div id="cacheStatus" class="p-3 rounded-md text-sm">
+                </div>
+            <p id="cacheTime" class="text-xs text-gray-500"></p>
+
+            <button id="refreshBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition">
+                Recarregar Cotações (Forçar Nova Busca)
+            </button>
+        </div>
+
+        <div id="ratesContainer" class="grid gap-6 sm:grid-cols-3">
+            <p class="text-center col-span-full text-gray-600">Carregando dados...</p>
+            </div>
+
+        <div id="errorStatus" class="hidden p-4 mt-6 rounded-md bg-red-100 text-sm text-red-800"></div>
+
+    </div>
+
+    <script>
+        // ******************************************************************************
+        // ATENÇÃO: Mude esta URL para o caminho correto do seu arquivo api.php no servidor
+        // ******************************************************************************
+        //const API_URL = 'http://localhost:8001/src/api.php'; 
+        const API_URL = 'api.php'; 
+
+        const ratesContainer = document.getElementById('ratesContainer');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const cacheStatus = document.getElementById('cacheStatus');
+        const cacheTime = document.getElementById('cacheTime');
+        const errorStatus = document.getElementById('errorStatus');
+        
+        // --- Funções de Utilitário ---
+
+        function formatCurrency(value, currency = 'BRL') {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: currency
+            }).format(value);
+        }
+
+        function updateCacheDisplay(source, timestamp) {
+            if (source === 'Cache') {
+                cacheStatus.textContent = '✅ Dados carregados do CACHE (economia de API).';
+                cacheStatus.className = 'p-3 rounded-md text-sm bg-green-100 text-green-800';
+                cacheTime.textContent = `Dados cacheados em: ${timestamp}`;
+            } else {
+                cacheStatus.textContent = '🌐 Dados carregados da API EXTERNA (cache renovado).';
+                cacheStatus.className = 'p-3 rounded-md text-sm bg-yellow-100 text-yellow-800';
+                cacheTime.textContent = `Última atualização: ${timestamp}`;
+            }
+        }
+
+        // --- Funções Principais ---
+
+        async function fetchRates() {
+            ratesContainer.innerHTML = '<p class="text-center col-span-full text-gray-600">Buscando...</p>';
+            errorStatus.classList.add('hidden');
+            refreshBtn.disabled = true;
+
+            try {
+                // Adiciona um parâmetro único para evitar cache de navegador no GET (não afeta o cache do PHP)
+                const response = await fetch(`${API_URL}?t=${Date.now()}`); 
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    const data = result.data;
+                    
+                    // Atualiza o status do cache
+                    updateCacheDisplay(data.source, data.cached_at);
+
+                    // Remove os campos de metadata antes de renderizar os cards
+                    delete data.source;
+                    delete data.cached_at;
+                    
+                    renderRates(data);
+                } else {
+                    throw new Error(result.error || 'Erro desconhecido ao carregar os dados.');
+                }
+            } catch (error) {
+                errorStatus.textContent = `Erro: ${error.message}`;
+                errorStatus.classList.remove('hidden');
+                ratesContainer.innerHTML = '<p class="text-center col-span-full text-red-500">Falha ao carregar cotações.</p>';
+                cacheStatus.textContent = '❌ Não foi possível obter os dados.';
+                cacheStatus.className = 'p-3 rounded-md text-sm bg-red-100 text-red-800';
+            } finally {
+                refreshBtn.disabled = false;
+            }
+        }
+
+        function renderRates(rates) {
+            ratesContainer.innerHTML = '';
+
+            for (const key in rates) {
+                const rate = rates[key];
+                
+                // Ignora chaves que não são de cotação se a API adicionar mais metadados
+                if (typeof rate !== 'object' || !rate.code) continue; 
+
+                // Formata os dados para exibição
+                const high = formatCurrency(rate.high);
+                const name = rate.name.split('/')[0]; // Ex: "Dólar Americano/Real Brasileiro" -> "Dólar Americano"
+
+                const cardHTML = `
+                    <div class="card bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+                        <h3 class="text-xl font-bold text-indigo-600 mb-1">${name} (${rate.code})</h3>
+                        <p class="text-3xl font-extrabold text-gray-800">${formatCurrency(rate.bid, 'BRL')}</p>
+                        <p class="text-sm text-gray-500 mt-2">
+                            Mínimo: ${formatCurrency(rate.low)}
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            Máximo: ${high}
+                        </p>
+                        <p class="text-xs text-gray-400 mt-2">Última atualização: ${rate.create_date}</p>
+                    </div>
+                `;
+                ratesContainer.innerHTML += cardHTML;
+            }
+        }
+
+        // --- Inicialização ---
+
+        // Ao clicar no botão, força uma nova busca (ignorando o cache de navegador com o `t=${Date.now()}` na URL)
+        refreshBtn.addEventListener('click', fetchRates);
+
+        // Carrega as cotações ao iniciar
+        document.addEventListener('DOMContentLoaded', fetchRates);
+    </script>
+</body>
+</html>
