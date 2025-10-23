@@ -79,7 +79,7 @@ php -S localhost:8001
 
 ---
 
-​## 📝 Demonstração da Lógica de Cache
+​# 📝 Demonstração da Lógica de Cache
 
 ​Primeira Visita: Ao carregar a página e clicar em "Recarregar", a aplicação fará a chamada à API Externa. O status mostrará "API EXTERNA". Um arquivo currency_cache.json será criado em src/cache/.
 ​Visitas Consecutivas (dentro de 5 minutos): Clique em "Recarregar". O status mudará imediatamente para "CACHE". O PHP ignorou a chamada à API externa, lendo o arquivo local.
