@@ -78,9 +78,7 @@ php -S localhost:8001
 ​- Acesse: O frontend estará disponível em http://localhost:8001/public/index.html.
 
 ---
-
 ​## 📝 Demonstração da Lógica de Cache
-
 ​Primeira Visita: Ao carregar a página e clicar em "Recarregar", a aplicação fará a chamada à API Externa. O status mostrará "API EXTERNA". Um arquivo currency_cache.json será criado em src/cache/.
 ​Visitas Consecutivas (dentro de 5 minutos): Clique em "Recarregar". O status mudará imediatamente para "CACHE". O PHP ignorou a chamada à API externa, lendo o arquivo local.
 ​Visita Após 5 Minutos: Após esperar mais de 5 minutos (ou a duração que você definiu em CACHE_DURATION_SECONDS), o próximo clique em "Recarregar" fará com que o PHP detecte que o arquivo expirou. O status voltará a mostrar "API EXTERNA" e um novo arquivo de cache será salvo.
