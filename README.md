@@ -51,7 +51,8 @@ currency-aggregator/
 ├── api.php
 ├── README.md
 ├── .gitignore
-└── LICENSE
+├── LICENSE
+└──  📁 cache/
 ```
 ---
 
